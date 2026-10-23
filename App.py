@@ -65,17 +65,69 @@ else:
                     except Exception as e:
                         st.error(f"Er ging iets mis met de API-aanroep: {e}")
 
-            # Kogelvrije TXT downloadknop (werkt ALTIJD, onafhankelijk van Python-versie)
+                       # KOGELVRIJE HTML-PRINT TRUC VOOR PERFECTE PDF'S (VERBETERDE LAY-OUT)
             if 'rapport' in st.session_state:
                 st.write("---")
                 st.subheader("📥 Export Opties")
+                
+                # Slimme conversie: we zetten markdown koppen, bolding en lijsten om naar nette HTML
+                html_content = st.session_state['rapport']
+                html_content = html_content.replace('\n', '<br/>')
+                html_content = html_content.replace('### ', '<h3>').replace(' ###', '</h3>') # Mocht Gemini ### gebruiken
+                html_content = html_content.replace('**', '<b>', 1).replace('**', '</b>', 1)
+                
+                # Loop om alle overige ** sterretjes netjes om te zetten naar dikgedrukte HTML
+                while '**' in html_content:
+                    html_content = html_content.replace('**', '<b>', 1).replace('**', '</b>', 1)
+                
+                html_print_layout = f"""
+                <html>
+                <head>
+                    <title>Sportwetenschappelijk Rapport 2027</title>
+                    <style>
+                        body {{ font-family: 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.7; color: #2d3748; padding: 50px; max-width: 850px; margin: 0 auto; }}
+                        h1 {{ color: #1a365d; border-bottom: 3px solid #3182ce; padding-bottom: 12px; font-size: 26px; font-weight: 700; margin-bottom: 20px; }}
+                        h2 {{ color: #2b6cb0; margin-top: 35px; font-size: 18px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }}
+                        h3 {{ color: #4a5568; margin-top: 20px; font-size: 15px; }}
+                        b {{ color: #1a202c; }}
+                        .meta {{ font-style: italic; color: #718096; margin-bottom: 30px; font-size: 14px; }}
+                        @media print {{
+                            body {{ padding: 0; color: #000; max-width: 100%; }}
+                            h1 {{ border-bottom: 3px solid #000; }}
+                            h2 {{ border-bottom: 1px solid #000; }}
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <h1>🚴‍♂️ Sportwetenschappelijk Coach Rapport - Wederopbouw 2027</h1>
+                    <div class="meta">Gegenereerd door AI Coach Assistent Dashboard | Datum: 23 oktober 2026</div>
+                    <div style="margin-top: 10px;">
+                        {html_content}
+                    </div>
+                    <script>
+                        window.onload = function() {{ window.print(); }}
+                    </script>
+                </body>
+                </html>
+                """
+                
+                # Maak twee mooie kolommen naast elkaar voor de knoppen
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button(
+                        label="🖨️ Exporteer als PDF (via Printvenster)",
+                        data=html_print_layout,
+                        file_name="Sportwetenschappelijk_Rapport_2027.html",
+                        mime="text/html"
+                    )
+                with col2:
+                    st.download_button(
+                        label="📝 Download als Tekstbestand (.txt)",
+                        data=st.session_state['rapport'],
+                        file_name="Sportwetenschappelijk_Rapport_2027.txt",
+                        mime="text/plain"
+                    )
 
-                st.download_button(
-                    label="📥 Download Rapport als PDF (.PDF)",
-                    data=st.session_state['rapport'],
-                    file_name="Sportwetenschappelijk_Rapport_2027.pdf",
-                    mime="text/plain"
-                )
 
         except Exception as e:
             st.error(f"Fout bij het inlezen van het CSV-bestand: {e}")
