@@ -21,7 +21,7 @@ model_provider = st.sidebar.selectbox(
 api_key = ""
 if model_provider == "Google Gemini":
     api_key = st.sidebar.text_input("Vul je Google Gemini API Key in:", type="password")
-    selected_model = "gemini-3.8-flash"
+    selected_model = "gemini-4-hydrogen"
     if not api_key:
         st.info("💡 Maak een API-sleutel aan via Google AI Studio om te starten.")
 else:
@@ -30,92 +30,134 @@ else:
     if not api_key:
         st.info("💡 Maak een API-sleutel aan via de Anthropic Console om te starten.")
 
-# 3. HOOFDSCHERM: INPUT & EXPERT CHECKBOXES
+# ==============================================================================
+# 3. HOOFDSCHERM: INPUT & GRANULAIRE CONTEXT FILTERS
+# ==============================================================================
 uploaded_file = st.file_uploader("Upload je TrainingPeaks 'Workout Summary' CSV-bestand:", type=["csv"])
 
-st.subheader("🎯 Sportwetenschappelijke Focuspunten (Expert-niveau)")
-st.write("Selecteer de analytische lenzen die de AI moet toepassen op de dataset:")
+st.subheader("🎛️ Context & Objectiviteit Filters")
+st.write("Selecteer welke subjectieve en contextuele bronnen de AI mag gebruiken:")
 
-focus_load = st.checkbox("1. Belastingsanalyse & Respons (CTL, ATL, TSB trends & periodisering-validatie)", value=True)
-focus_efficiency = st.checkbox(
-    "2. Metabole & Mechanische Efficiëntie (Decoupling / Aerobe ontkoppeling Pw:Hr of Pa:Hr trends)", value=True)
-focus_pd_curve = st.checkbox(
-    "3. Fenotypering & Power-Duration Trends (Verschuivingen in kritiek vermogen / FTP / MMP-profiel)", value=True)
-focus_fatigue = st.checkbox(
-    "4. Risico-indicatoren (Maladaptatie, Non-Functional Overreaching (NFOR) & acute load spikes)", value=False)
+col1, col2 = st.columns(2)
+
+with col1:
+    gebruik_comments = st.checkbox(
+        "Neem atleet-comments mee (tekstuele feedback)",
+        value=False,
+        help="Bevat vaak emotie of excuses, maar ook belangrijke context zoals ziekte of materiaalpech."
+    )
+    gebruik_rpe = st.checkbox(
+        "Neem RPE-scores mee (Rate of Perceived Exertion)",
+        value=True,
+        help="Nuttig om interne belasting (sRPE) te vergelijken met externe belasting (Watt/TSS)."
+    )
+    gebruik_gevoel = st.checkbox(
+        "Neem 'Feeling' / Gevoel-scores mee",
+        value=False,
+        help="De algemene gemoedstoestand of frisheid die de atleet aanklikt."
+    )
+
+with col2:
+    gebruik_coach_context = st.checkbox(
+        "Gebruik mijn ingevulde coach-context hieronder",
+        value=True
+    )
+    strenge_data_check = st.checkbox(
+        "Confronteer subjectieve input met harde data",
+        value=True,
+        help="Dwingt de AI om te checken of RPE, gevoel of comments wel kloppen met hartslag en vermogen."
+    )
+    negeer_outliers = st.checkbox(
+        "Filter technische uitbijters (0-waardes & sensor-spikes)",
+        value=True
+    )
 
 extra_context = st.text_area(
-    "Aanvullende atleet-fysiologie & context (bv. bekende drempelwaardes, VO2max, lactaatprofiel, blessurehistorie):",
-    placeholder="Bv. FTP 320W, LTHR 172bpm. Atleet heeft neiging tot vroege aerobe ontkoppeling bij ritten > 3u."
+    "Aanvullende atleet-fysiologie & context (bv. drempelwaardes, blessurehistorie, specifieke doelen):",
+    placeholder="Bv. FTP 320W, LTHR 172bpm. Let op: atleet klaagt snel over zware benen in week 2 van een blok."
 )
 
-# 4. ANALYSE LOGICA
+# ==============================================================================
+# 4. ANALYSE LOGICA & GRANULAIRE DATA-OPSCHONING
+# ==============================================================================
 if uploaded_file is not None and api_key:
     try:
         df = pd.read_csv(uploaded_file)
         df.columns = df.columns.str.strip().str.lower()
-        st.success(f"Data succesvol geladen! {len(df)} trainingen gevonden.")
-        st.dataframe(df.head(5))
 
-        if st.button("🚀 Start Expert Analyse"):
-            with st.spinner(f"Uw sportwetenschappelijke assistent ({model_provider}) berekent de data..."):
-                training_data = df.to_string(index=False)
+        # HARD DATA-FILTER: Verwijder de uitgevinkte kolommen fysiek uit de dataset
+        kolommen_te_verwijderen = []
 
-                # Dynamische expert-opdracht opbouwen op basis van checkboxes
-                opdracht_secties = ""
-                if focus_load:
-                    opdracht_secties += """
-                    1. KWALITATIEVE EN QUANTITATIEVE PERIODISERING-EVALUATIE
-                    - Evalueer de mechanische en fysiologische belasting chronologisch. 
-                    - Analyseer de progressie van de chronische trainingsbelasting (CTL-equivalent) en acute belasting (ATL-equivalent).
-                    - Beoordeel of de gerealiseerde overload voldoet aan de principes van supercompensatie.
-                    """
-                if focus_efficiency:
-                    opdracht_secties += """
-                    2. METABOLE EN MECHANISCHE EFFICIËNTIE (EFFICIENCY FACTOR & DECOUPLING)
-                    - Onderzoek trends in de verhouding tussen input (hartslag) en output (vermogen/tempo) tijdens aerobe submaximale trainingen.
-                    - Identificeer patronen van aerobe ontkoppeling (Pw:Hr of Pa:Hr > 5%) in langere submaximale sessies.
-                    """
-                if focus_pd_curve:
-                    opdracht_secties += """
-                    3. POWER-DURATION PROFIEL & FENOTYPERING
-                    - Analyseer piekvermogens over relevante tijdsdomeinen (bv. 5s, 1min, 5min, 20min) aanwezig in de dataset.
-                    - Welke energiesystemen zijn primair geprikkeld en hoe hebben deze zich ontwikkeld?
-                    """
-                if focus_fatigue:
-                    opdracht_secties += """
-                    4. MALADAPTATIE EN ACUTE RISICO-ANALYSE
-                    - Screen de data op indicatoren van Non-Functional Overreaching (NFOR) of chronische vermoeidheid.
-                    - Identificeer acute belastingspieken (acute-to-chronic workload ratio rondslingerend buiten de 0.8 - 1.3 zone).
-                    """
+        if not gebruik_comments:
+            kolommen_te_verwijderen.extend(
+                [col for col in df.columns if any(w in col for w in ['comment', 'description', 'note'])])
+        if not gebruik_rpe:
+            kolommen_te_verwijderen.extend([col for col in df.columns if 'rpe' in col])
+        if not gebruik_gevoel:
+            kolommen_te_verwijderen.extend([col for col in df.columns if 'feeling' in col or 'gevoel' in col])
 
-                # De aangescherpte expert prompt
-                # De aangescherpte, no-nonsense expert prompt
+        df_gefilterd = df.drop(columns=kolommen_te_verwijderen, errors='ignore')
+
+        st.success(f"Data succesvol geladen! {len(df_gefilterd)} trainingen klaar voor analyse.")
+        if kolommen_te_verwijderen:
+            st.caption(f"🔒 Uitgesloten kolommen voor objectiviteit: {', '.join(set(kolommen_te_verwijderen))}")
+
+        st.dataframe(df_gefilterd.head(5))
+
+        if st.button("🚀 Start Analyse"):
+            with st.spinner(f"Uw sportwetenschappelijke assistent ({model_provider}) analyseert de data..."):
+                training_data = df_gefilterd.to_string(index=False)
+
+                # Dynamische regels voor de AI op basis van de aangevinkte filters
+                context_regels = ""
+
+                if not any([gebruik_comments, gebruik_rpe, gebruik_gevoel]):
+                    context_regels += "- **100% BLIND & OBJECTIEF:** Alle subjectieve data (comments, RPE, gevoel) is verwijderd. Baseer je conclusies UITSLUITEND op mechanische (wattage/tempo) en fysiologische (hartslag/TSS) meetwaarden.\n"
+                else:
+                    actieve_bronnen = []
+                    if gebruik_comments: actieve_bronnen.append("tekstuele comments")
+                    if gebruik_rpe: actieve_bronnen.append("RPE-scores")
+                    if gebruik_gevoel: actieve_bronnen.append("gevoelsscores")
+                    context_regels += f"- **TOEGESTANE SUBJECTIEVE DATA:** Je mag uitsluitend gebruikmaken van: {', '.join(actieve_bronnen)}. Andere subjectieve velden zijn bewust geblokkeerd.\n"
+
+                if any([gebruik_comments, gebruik_rpe, gebruik_gevoel]) and strenge_data_check:
+                    context_regels += "- **REALITY CHECK:** Vergelijk de toegestane subjectieve input actief met de harde fysiologische data. Wijs de coach er direct op als een hoge RPE, slecht gevoel of negatieve comment NIET strookt met de geleverde wattages of hartslagrespons (bv. normale Efficiency Factor of lage aerobe ontkoppeling).\n"
+
+                if negeer_outliers:
+                    context_regels += "- **DATA-HYGIËNE:** Negeer duidelijke meetfouten, onvolledige bestanden of sensor-spikes (zoals 0W gemiddeld bij een rit of onrealistische hartslagpieken).\n"
+
+                actieve_coach_context = extra_context if (
+                            gebruik_coach_context and extra_context) else "Geen coach-context meegegeven. Analyseer volledig blanco."
+
+                # De aangescherpte, no-nonsense high-performance prompt
                 prompt = f"""
                 Je bent een high-performance sportwetenschappelijk analist. Je ondersteunt een professionele duursportcoach. 
                 Praat op gelijke hoogte met een topcoach: direct, kritisch en uitsluitend gefocust op bruikbare performance-inzichten. 
-                Vermijd academisch gezever, passieve zinnen of theoretische definities (leg NIET uit wat TSS, CTL of ontkoppeling is, de coach weet dit).
+                Vermijd academisch gezever of theoretische definities (leg NIET uit wat TSS, CTL of ontkoppeling is). Geef data in DD/MM/YYYY.
+                COACH CONTEXT:
+                {actieve_coach_context}
 
-                SPECIFIEKE ATLEET-FYSIOLOGIE & METRICS:
-                {extra_context if extra_context else "Geen aanvullende parameters opgegeven."}
+                OBJECTIVITEITS- & FILTERREGELS (STRIKT VOLGEN):
+                {context_regels}
 
                 TRAININGSDATA (CSV):
                 {training_data}
 
                 OPDRACHT:
-                Analyseer de dataset vlijmscherp. Schrijf een klinisch, datagedreven Coach Rapport in helder, direct Nederlands. 
-                Focus uitsluitend op de geselecteerde sportwetenschappelijke lenzen:
-
-                {opdracht_secties}
+                Analyseer de dataset vlijmscherp. Schrijf een klinisch, datagedreven Coach Rapport in helder, direct Nederlands.
+                Focus op:
+                1. **Belastingsopbouw & Respons:** Evalueer de chronische vs. acute belasting (CTL/ATL trends) en herstelratio's.
+                2. **Metabole & Mechanische Efficiëntie:** Analyseer Efficiency Factor (EF) en aerobe ontkoppeling (Pw:Hr / Pa:Hr) in duurtrainingen.
+                3. **Power-Duration & Energiesystemen:** Welke systemen zijn geprikkeld en welke verschuivingen zijn zichtbaar in piekvermogens?
+                4. **Risico's & Valkuilen:** Signaleer indicatoren van maladaptatie, overreaching of een suboptimale intensiteitsverdeling.
 
                 ANALYSEREGELS VOOR HIGH-PERFORMANCE:
-                - **Kom direct ter zake:** Geen inleidende zinnen zoals "Na analyse van de data blijkt...". Start meteen met het harde inzicht.
+                - **Kom direct ter zake:** Geen inleidende zinnen. Start meteen met het harde inzicht.
                 - **Harde datakoppeling:** Elke trend of conclusie *moet* direct onderbouwd worden met exacte datums, vermogenswaardes, hartslagen of TSS-scores tussen haakjes.
-                - **Geen aannames:** Onderscheid gerealiseerde prestatie (MMP) strikt van fysiologische adaptatie. Wees kritisch op de effectiviteit van de load.
-                - **Actiegericht:** Vertaal de trends naar concrete conclusies waar de coach morgen mee aan de slag kan in het trainingsschema.
+                - **Actiegericht:** Vertaal de trends naar concrete conclusies waar de coach morgen mee aan de slag kan.
 
                 OUTPUT FORMAT:
-                Lever uitsluitend het rapport op in strakke, rauwe Markdown. Gebruik korte, krachtige alinea's en bulletpoints. 
+                Lever uitsluitend het rapport op in strakke Markdown. Gebruik korte, krachtige alinea's en bulletpoints. 
                 Start direct met een 'EXECUTIVE SUMMARY' (maximaal 4 bullets met de meest kritieke trends). 
                 Geen beleefdheidsfrasen, geen academische conclusies vooraf of achteraf. Alleen de harde feiten.
                 """
