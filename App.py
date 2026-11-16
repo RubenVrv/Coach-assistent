@@ -105,7 +105,7 @@ if uploaded_file is not None and api_key:
         st.dataframe(df_gefilterd.head(5))
 
         if st.button("🚀 Start Analyse"):
-            with st.spinner(f"Uw sportwetenschappelijke assistent ({model_provider}) analyseert de data..."):
+            with st.spinner(f"Vitori's assistent ({model_provider}) analyseert de data..."):
                 training_data = df_gefilterd.to_string(index=False)
 
                 # Dynamische regels voor de AI op basis van de aangevinkte filters
@@ -193,7 +193,7 @@ if uploaded_file is not None and api_key:
 # ==============================================================================
 # VERVANG REGEL 147:
 if 'rapport' in st.session_state and st.session_state['rapport'] is not None:
-    st.subheader(f"📋 AI Coach Rapport ({model_provider})")
+    st.subheader(f"📋 Vitori's AI Coach Rapport ({model_provider})")
     st.markdown(st.session_state['rapport'])
 
     st.write("---")
