@@ -164,8 +164,8 @@ if uploaded_files and api_key:
 
         st.dataframe(df_gefilterd.head(5))
 
-        if st.button("🚀 Start Objectieve Analyse"):
-            with st.spinner(f"Uw sportwetenschappelijke assistent ({model_provider}) analyseert de data..."):
+        if st.button("🚀 Start Analyse"):
+            with st.spinner(f"Uw assistent ({model_provider}) analyseert de data..."):
 
                 # PYTHON BEREKENT EEN HARDE JAAR-SAMENVATTING
                 jaar_samenvatting = ""
