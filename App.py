@@ -126,7 +126,7 @@ if uploaded_files and api_key:
         for col in df.columns:
             if col not in ['title', 'workouttype', 'workoutdescription', 'coachcomments', 'athletecomments',
                            'workoutday']:
-                df[col] = pd.to_numeric(df[col], errors='ignore')
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
         # Veilige datum-conversie en toevoegen van expliciete 'seizoen_jaar' kolom
         datum_kolom = next((col for col in df.columns if any(k in col for k in ['workoutday', 'day', 'date', 'datum'])),
