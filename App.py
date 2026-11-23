@@ -7,7 +7,7 @@ import csv
 
 st.set_page_config(page_title="Gratis AI Coach Assistent", layout="wide")
 st.title("🚴‍♂️ AI Coach Dashboard ")
-st.write("Analyseer TrainingPeaks-data voor professionele coaches")
+st.write("Analyseer TrainingPeaks-data")
 
 # 1. INITIALISEER SESSION STATE (Dit voorkomt de KeyError)
 if 'rapport' not in st.session_state:
