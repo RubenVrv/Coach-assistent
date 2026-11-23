@@ -6,7 +6,7 @@ import csv
 
 
 st.set_page_config(page_title="Gratis AI Coach Assistent", layout="wide")
-st.title("🚴‍♂️ Vitori AI Coach Dashboard ")
+st.title("🚴‍♂️ AI Coach Dashboard ")
 st.write("Analyseer TrainingPeaks-data voor professionele coaches")
 
 # 1. INITIALISEER SESSION STATE (Dit voorkomt de KeyError)
