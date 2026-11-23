@@ -373,6 +373,3 @@ if 'rapport' in st.session_state and st.session_state['rapport'] is not None:
             file_name="Sportwetenschappelijk_Rapport.txt",
             mime="text/plain"
         )
-
-
-
